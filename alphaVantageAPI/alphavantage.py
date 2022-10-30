@@ -342,6 +342,8 @@ class AlphaVantage(object):
             path = f"{self.export_path}/{parameters['from_symbol']}{parameters['to_symbol']}_{parameters['interval']}"
         elif function in ["CD", "CW", "CM", "DIGITAL_CURRENCY_DAILY", "DIGITAL_CURRENCY_WEEKLY", "DIGITAL_CURRENCY_MONTHLY"]:
             path = f"{self.export_path}/{parameters['symbol']}{parameters['market']}_{short_function.replace('C', '')}"
+        elif function in ["CI", "CRYPTO_INTRADAY"]:
+            path = f"{self.export_path}/{parameters['symbol']}{parameters['market']}_{parameters['interval']}"    
         elif function == "TIME_SERIES_INTRADAY_EXTENDED":
             ie_slice = re_sub(r'month', "M",  re_sub(r'year', "Y", parameters['slice']))
             ie_adjusted = "_ADJ" if parameters['adjusted'] == "true" else ""
@@ -480,6 +482,15 @@ class AlphaVantage(object):
             "market": market.upper()
         }
 
+        interval = kwargs.pop("interval", None)
+        if interval is not None:
+            if isinstance(interval, str) and interval in self.__api_series_interval:
+                parameters["interval"] = interval
+            elif isinstance(interval, int) and interval in [int(re_sub(r'min', "", x)) for x in self.__api_series_interval]:
+                parameters["interval"] = f"{interval}min"
+            else:
+                return None
+
         download = self._av_api_call(parameters, **kwargs)
         return download if download is not None else None
 
@@ -493,6 +504,9 @@ class AlphaVantage(object):
 
         download = self._av_api_call(parameters, **kwargs)
         return download if download is not None else None
+
+    def digital_intraday(self, symbol:str, interval=5):
+        pass
 
 
     def intraday(self, symbol:str, interval=5, adjusted=True, **kwargs) -> DataFrame or None:
@@ -647,6 +661,7 @@ class AlphaVantage(object):
             return {ticker: self.data(ticker, function, **kwargs) for ticker in symbols}
 
         try:
+            # Function being set to tf = 60min
             function = self.__api_function[function] if function not in self.__api_indicator else function
         except KeyError:
             print(f"[X] Perhaps \'function\' and \'symbol\' are interchanged!? function={function} and symbol={symbol}")
